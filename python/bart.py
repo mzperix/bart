@@ -134,8 +134,12 @@ class Experiment:
             i = 1
             popped = False
             while (i <= decision) & (not popped):
-                popped = self.pump()
-                i += 1
+                if (np.random.uniform() < 1/(1+np.exp(self.player.beta*(i-decision)))):
+                    popped = self.pump()
+                    i += 1
+                else:
+                    break
+                
             if not popped:
                 self.bank()
 
@@ -181,11 +185,12 @@ class PlayerModel(object):
 
 class Model_3(PlayerModel): 
     # based on Wallsten et al. (2008)
-    def __init__(self, a0, m0, gamma, naive = False):
+    def __init__(self, a0, m0, gamma, beta, naive = False):
         self.a0 = a0
         self.m0 = m0
         self.reset()
         self.gamma = gamma
+        self.beta = beta
         self.i_max = I_MAX
         if naive:
             self.decision = self.naive_decision
