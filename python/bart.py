@@ -3,6 +3,7 @@
 import numpy as np
 import scipy.stats as sp
 import matplotlib.pyplot as plt
+from scipy.special import gammaln as lgamma
 
 I_MAX = 50 # maximum number of pumps ever tried by a player
 
@@ -128,17 +129,15 @@ class Experiment:
         
         self.setup()
         while not self.finished:
-            decision = self.player.decision(self.rewards)
+            decision = self.player.sigmoid_decision(self.rewards)
             if verbose:
                 print('Decision: ', decision, '   | player state: a=',self.player.a, '  m=',self.player.m)
             i = 1
             popped = False
             while (i <= decision) & (not popped):
-                if (np.random.uniform() < 1/(1+np.exp(self.player.beta*(i-decision)))):
-                    popped = self.pump()
-                    i += 1
-                else:
-                    break
+                #if (np.random.uniform() < 1/(1+np.exp(self.player.beta*(i-decision)))):
+                popped = self.pump()
+                i += 1
                 
             if not popped:
                 self.bank()
@@ -185,13 +184,13 @@ class PlayerModel(object):
 
 class Model_3(PlayerModel): 
     # based on Wallsten et al. (2008)
-    def __init__(self, a0, m0, gamma, beta, naive = False):
+    def __init__(self, a0, m0, gamma, beta, naive = False, i_max = I_MAX):
         self.a0 = a0
         self.m0 = m0
         self.reset()
         self.gamma = gamma
         self.beta = beta
-        self.i_max = I_MAX
+        self.i_max = i_max
         if naive:
             self.decision = self.naive_decision
         else:
@@ -204,20 +203,34 @@ class Model_3(PlayerModel):
     def utility(self, rewards):
         return(cara_utility(rewards, self.gamma))
 
-    def expected_utility(self, rewards, i, qs = np.linspace(0,1,100)):
-        integral = 0
-        integral = np.sum(self.q_pdf(qs)*qs**i)
+    def expected_utility(self, rewards, i, qs = np.linspace(0,1,1000)):
+        log_p_marginal = (lgamma(self.a+i)
+                         -lgamma(self.a)
+                         +lgamma(self.a+self.m)
+                         -lgamma(self.a+self.m+i))
+        #integral = np.sum(self.q_pdf(qs)*qs**i)
         #for q in qs:
         #    integral+= self.q_pdf(q)*q**i
-        integral = integral*self.utility(rewards[i])/len(qs)
-        return(integral)
+        exp_u = np.exp(log_p_marginal)*self.utility(rewards[i])
+        return(exp_u)
 
     def q_pdf(self, q):
         return(sp.beta.pdf(q, self.a, self.m))
 
-    def argmax_expected_utility(self, rewards, qs = np.linspace(0,1,100)):
-        us = [self.expected_utility(rewards, i) for i in range(self.i_max)]
+    def argmax_expected_utility(self, rewards, qs = np.linspace(0,1,1000)):
+        us = [self.expected_utility(rewards = rewards, i = i) for i in range(self.i_max)]
         return(np.argmax(us))
+
+    def sigmoid_decision(self, rewards):
+        decision = self.decision(rewards)
+        i = 1
+        stop = False
+        while not stop:
+            if (np.random.uniform() < 1/(1+np.exp(self.beta*(i-decision)))):
+                i += 1
+            else:
+                stop = True
+        return(i-1)
 
     def not_naive_decision(self, rewards):
         return(self.argmax_expected_utility(rewards))
@@ -228,4 +241,12 @@ class Model_3(PlayerModel):
     def reset(self):
         self.a = self.a0
         self.m = self.m0
+
+
+class Model_3_softmax(Model_3):
+    
+    def not_naive_decision(self, rewards):
+        us = np.array([self.expected_utility(rewards = rewards, i = i) for i in range(self.i_max)])
+        decision = np.random.choice(range(self.i_max), p = np.exp(self.beta*us)/np.sum(np.exp(self.beta*us)))
+        return(decision)
 
