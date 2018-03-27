@@ -57,8 +57,11 @@ model{
     real p;
 
     // PRIORS
-    a0_resc ~ gamma(a0_shape, 1);
-    m0_resc ~ gamma(m0_shape, 1);
+    //a0_resc ~ gamma(a0_shape, 1);
+    //m0_resc ~ gamma(m0_shape, 1);
+
+    a0_resc ~ normal(0, a0_shape);
+    m0_resc ~ normal(0, m0_shape);
 
     //beta_soft_max ~ gamma(1,1);
     gamma_pos ~ gamma(1,1);
