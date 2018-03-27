@@ -27,12 +27,11 @@ data{
 
     int<lower = 1> i_max; // number of maximum pumps ever tried
     vector[i_max] rewards;
-    //real<lower = 0.0> beta_soft_max;
 
-    real a0_shape;
-    real m0_shape;
-    real a0_scale;
-    real m0_scale;
+    real<lower = 0.0> gamma_std;
+    real<lower = 0.0> a0_std;
+    real<lower = 0.0> m0_std;
+    real<lower = 0.0> beta_std;
 }
 
 parameters{
@@ -42,14 +41,6 @@ parameters{
     real<lower = 0.0> beta_soft_max;
 }
 
-transformed parameters{
-    real<lower = 0.0> a0_resc;
-    real<lower = 0.0> m0_resc;
-    
-    a0_resc = a0 / a0_scale;
-    m0_resc = m0 / m0_scale;
-}
-
 model{
     real a;
     real m;
@@ -57,14 +48,11 @@ model{
     real p;
 
     // PRIORS
-    //a0_resc ~ gamma(a0_shape, 1);
-    //m0_resc ~ gamma(m0_shape, 1);
+    a0 ~ normal(0, a0_std);
+    m0 ~ normal(0, m0_std);
 
-    a0_resc ~ normal(0, a0_shape);
-    m0_resc ~ normal(0, m0_shape);
-
-    //beta_soft_max ~ gamma(1,1);
-    gamma_pos ~ gamma(1,1);
+    beta_soft_max ~ normal(0,beta_std);
+    gamma_pos ~ normal(0,gamma_std);
 
     a = a0;
     m = m0;
